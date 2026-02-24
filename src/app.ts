@@ -1,38 +1,83 @@
+import crypto from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { MulterError } from 'multer';
 import { AccountStore } from './services/AccountStore';
+import { AccountController } from './controllers/AccountController';
+import { TransactionController } from './controllers/TransactionController';
 import { createAccountsRouter } from './routes/accounts';
 import { createTransactionsRouter } from './routes/transactions';
+import { AppError } from './errors/AppError';
+import { ErrorCode } from './errors/errorCodes';
+import { logger } from './utils/logger';
 
 export function createApp(): express.Application {
   const app = express();
-  const store = new AccountStore();
 
+  const store = new AccountStore();
+  const accountController = new AccountController(store);
+  const transactionController = new TransactionController(store);
+
+  app.use(helmet());
+  app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*' }));
   app.use(express.json());
 
-  // Request logger
-  app.use((req: Request, _res: Response, next: NextFunction) => {
-    console.log(`${new Date().toISOString()}  ${req.method} ${req.path}`);
+  app.use(
+    '/api',
+    rateLimit({
+      windowMs: 60 * 1000, // 1 minute
+      max: 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: 'Too many requests, please try again later',
+      },
+    }),
+  );
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    req.requestId = crypto.randomUUID();
+    const start = Date.now();
+
+    res.on('finish', () => {
+      logger.info({
+        requestId: req.requestId,
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        durationMs: Date.now() - start,
+      });
+    });
+
     next();
   });
 
-  // Health check — useful for load balancers and container orchestrators
   app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
   });
 
-  app.use('/api/accounts', createAccountsRouter(store));
-  app.use('/api/transactions', createTransactionsRouter(store));
+  app.use('/api/accounts', createAccountsRouter(accountController));
+  app.use('/api/transactions', createTransactionsRouter(transactionController));
 
-  // Global error handler — catches validation errors forwarded via next(err)
-  // and any unexpected throws. Must have 4 parameters to be recognised by Express.
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  // Express requires 4 params to recognise this as an error handler
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof MulterError) {
-      res.status(400).json({ error: `File upload error: ${err.message}` });
+      err = new AppError(400, ErrorCode.FILE_UPLOAD_ERROR, err.message);
+    }
+
+    if (err instanceof AppError && err.isOperational) {
+      logger.warn({ requestId: req.requestId, code: err.code, message: err.message });
+      res.status(err.statusCode).json({ code: err.code, message: err.message });
       return;
     }
-    // Treat validation errors (e.g. missing CSV columns) as 422
-    res.status(422).json({ error: err.message });
+
+    logger.error({ requestId: req.requestId, err }, 'Unhandled error');
+    res
+      .status(500)
+      .json({ code: ErrorCode.INTERNAL_ERROR, message: 'An unexpected error occurred' });
   });
 
   return app;
