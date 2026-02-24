@@ -1,15 +1,24 @@
 import { CsvLoader } from '../src/services/CsvLoader';
 
+const ACCOUNT_COLS = ['Account', 'Balance'];
+
 describe('CsvLoader', () => {
   describe('parseRows', () => {
-    it('parses CSV content into raw row objects', () => {
+    it('parses CSV with headers into row objects', () => {
       const csv = 'Account,Balance\n1111234522226789,5000.00\n';
-      expect(CsvLoader.parseRows(csv)).toHaveLength(1);
+      expect(CsvLoader.parseRows(csv, ACCOUNT_COLS)).toHaveLength(1);
+    });
+
+    it('parses CSV without headers using expected columns', () => {
+      const csv = '1111234522226789,5000.00\n';
+      const rows = CsvLoader.parseRows(csv, ACCOUNT_COLS);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ Account: '1111234522226789', Balance: '5000.00' });
     });
 
     it('uses column headers as keys', () => {
       const csv = 'Account,Balance\n1111234522226789,5000.00\n';
-      expect(CsvLoader.parseRows(csv)[0]).toMatchObject({
+      expect(CsvLoader.parseRows(csv, ACCOUNT_COLS)[0]).toMatchObject({
         Account: '1111234522226789',
         Balance: '5000.00',
       });
@@ -17,12 +26,12 @@ describe('CsvLoader', () => {
 
     it('trims whitespace from values', () => {
       const csv = 'Account,Balance\n  1111234522226789  ,  5000.00  \n';
-      expect(CsvLoader.parseRows(csv)[0].Account).toBe('1111234522226789');
+      expect(CsvLoader.parseRows(csv, ACCOUNT_COLS)[0].Account).toBe('1111234522226789');
     });
 
     it('skips empty lines', () => {
       const csv = 'Account,Balance\n1111234522226789,5000.00\n\n1212343433335665,1200.00\n';
-      expect(CsvLoader.parseRows(csv)).toHaveLength(2);
+      expect(CsvLoader.parseRows(csv, ACCOUNT_COLS)).toHaveLength(2);
     });
   });
 

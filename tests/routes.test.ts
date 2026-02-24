@@ -60,7 +60,7 @@ describe('API routes', () => {
         .attach('file', bad, 'bad.csv')
         .expect(422);
       expect(res.body.code).toBe('VALIDATION_ERROR');
-      expect(res.body.message).toMatch(/missing required columns/i);
+      expect(res.body.message).toMatch(/validation failed/i);
     });
 
     it('makes accounts visible via GET /api/accounts after loading', async () => {
