@@ -53,13 +53,14 @@ describe('API routes', () => {
       expect(account?.balance).toBe('5000.00');
     });
 
-    it('returns 422 with a clear message when the CSV has wrong columns', async () => {
+    it('returns 422 with a VALIDATION_ERROR code when the CSV has wrong columns', async () => {
       const bad = Buffer.from('Number,Amount\n1111234522226789,5000.00\n');
       const res = await request(app)
         .post('/api/accounts/load')
         .attach('file', bad, 'bad.csv')
         .expect(422);
-      expect(res.body.error).toMatch(/missing required columns/i);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      expect(res.body.message).toMatch(/missing required columns/i);
     });
 
     it('makes accounts visible via GET /api/accounts after loading', async () => {
@@ -73,11 +74,12 @@ describe('API routes', () => {
   });
 
   describe('POST /api/transactions/process', () => {
-    it('responds 409 when no accounts have been loaded yet', async () => {
-      await request(app)
+    it('responds 409 with NO_ACCOUNTS_LOADED code when no accounts loaded', async () => {
+      const res = await request(app)
         .post('/api/transactions/process')
         .attach('file', fixture('transactions.csv'), 'transactions.csv')
         .expect(409);
+      expect(res.body.code).toBe('NO_ACCOUNTS_LOADED');
     });
 
     it('responds 400 when no file is attached', async () => {
