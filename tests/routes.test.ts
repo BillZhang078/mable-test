@@ -130,6 +130,18 @@ describe('API routes', () => {
         expect(accountA?.balance).toBe('4820.50');
       });
 
+      it('returns 422 when a transaction has the same From and To account', async () => {
+        const selfTransfer = Buffer.from(
+          'From,To,Amount\n1111234522226789,1111234522226789,100.00\n',
+        );
+        const res = await request(app)
+          .post('/api/transactions/process')
+          .attach('file', selfTransfer, 'self.csv')
+          .expect(422);
+        expect(res.body.code).toBe('VALIDATION_ERROR');
+        expect(res.body.message).toMatch(/different/i);
+      });
+
       it('marks a transfer as failed when the source has insufficient funds', async () => {
         const overdraftCsv = Buffer.from(
           'From,To,Amount\n1111234522226789,1212343433335665,9999999.00\n',
