@@ -92,6 +92,33 @@ describe('TransactionProcessor', () => {
     });
   });
 
+  describe('boundary cases', () => {
+    it('transfers the exact full balance successfully', () => {
+      const results = processor.process([transfer(accountA.number, accountB.number, 500000)]);
+      expect(results[0].success).toBe(true);
+      expect(accountA.balance).toBe(0);
+      expect(accountB.balance).toBe(620000);
+    });
+
+    it('fails when transferring 1 cent more than the balance', () => {
+      const results = processor.process([transfer(accountA.number, accountB.number, 500001)]);
+      expect(results[0].success).toBe(false);
+      expect(accountA.balance).toBe(500000);
+    });
+
+    it('handles a 1-cent transfer', () => {
+      const results = processor.process([transfer(accountA.number, accountB.number, 1)]);
+      expect(results[0].success).toBe(true);
+      expect(accountA.balance).toBe(499999);
+      expect(accountB.balance).toBe(120001);
+    });
+
+    it('processes an empty transaction list', () => {
+      const results = processor.process([]);
+      expect(results).toHaveLength(0);
+    });
+  });
+
   describe('sequential processing of multiple transactions', () => {
     it('applies each transaction in order so earlier ones affect later balances', () => {
       processor.process([
