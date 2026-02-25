@@ -3,7 +3,6 @@ import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { MulterError } from 'multer';
 import { AccountStore } from './services/AccountStore';
 import { AccountController } from './controllers/AccountController';
 import { TransactionController } from './controllers/TransactionController';
@@ -64,10 +63,6 @@ export function createApp(): express.Application {
 
   // Express requires 4 params to recognise this as an error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-    if (err instanceof MulterError) {
-      err = new AppError(400, ErrorCode.FILE_UPLOAD_ERROR, err.message);
-    }
-
     if (err instanceof AppError && err.isOperational) {
       logger.warn({ requestId: req.requestId, code: err.code, message: err.message });
       res.status(err.statusCode).json({ code: err.code, message: err.message });

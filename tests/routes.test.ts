@@ -9,7 +9,6 @@ describe('API routes', () => {
   let app: ReturnType<typeof createApp>;
 
   beforeEach(() => {
-    // Fresh app instance per test — isolated in-memory store.
     app = createApp();
   });
 
@@ -63,6 +62,47 @@ describe('API routes', () => {
       expect(res.body.message).toMatch(/validation failed/i);
     });
 
+    it('loads a CSV without headers using positional columns', async () => {
+      const res = await request(app)
+        .post('/api/accounts/load')
+        .attach('file', fixture('accounts-no-headers.csv'), 'accounts-no-headers.csv')
+        .expect(200);
+
+      expect(res.body.loaded).toBe(3);
+      const account = res.body.accounts.find(
+        (a: { number: string }) => a.number === '1111234522226789',
+      );
+      expect(account?.balance).toBe('5000.00');
+    });
+
+    it('returns 400 when content-type is not multipart/form-data', async () => {
+      const res = await request(app)
+        .post('/api/accounts/load')
+        .set('Content-Type', 'application/json')
+        .send('{}')
+        .expect(400);
+      expect(res.body.code).toBe('MISSING_FILE');
+    });
+
+    it('rejects a non-CSV file based on MIME type', async () => {
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG magic bytes
+      const res = await request(app)
+        .post('/api/accounts/load')
+        .attach('file', png, { filename: 'image.png', contentType: 'image/png' })
+        .expect(400);
+      expect(res.body.code).toBe('FILE_UPLOAD_ERROR');
+      expect(res.body.message).toMatch(/invalid file type/i);
+    });
+
+    it('returns 422 for an empty CSV (no data rows)', async () => {
+      const empty = Buffer.from('Account,Balance\n');
+      const res = await request(app)
+        .post('/api/accounts/load')
+        .attach('file', empty, 'empty.csv')
+        .expect(200);
+      expect(res.body.loaded).toBe(0);
+    });
+
     it('makes accounts visible via GET /api/accounts after loading', async () => {
       await request(app)
         .post('/api/accounts/load')
@@ -97,6 +137,27 @@ describe('API routes', () => {
           .attach('file', fixture('accounts.csv'), 'accounts.csv');
       });
 
+      it('processes a headerless CSV using positional columns', async () => {
+        const res = await request(app)
+          .post('/api/transactions/process')
+          .attach('file', fixture('transactions-no-headers.csv'), 'transactions-no-headers.csv')
+          .expect(200);
+
+        expect(res.body.results).toHaveLength(2);
+        expect(res.body.succeeded).toBe(2);
+      });
+
+      it('marks a transfer as failed when the destination account does not exist', async () => {
+        const csv = Buffer.from('From,To,Amount\n1111234522226789,9999999999999999,100.00\n');
+        const res = await request(app)
+          .post('/api/transactions/process')
+          .attach('file', csv, 'missing-dest.csv')
+          .expect(200);
+
+        expect(res.body.results[0].success).toBe(false);
+        expect(res.body.results[0].error).toMatch(/not found/i);
+      });
+
       it('returns a result for each transaction', async () => {
         const res = await request(app)
           .post('/api/transactions/process')
@@ -112,7 +173,6 @@ describe('API routes', () => {
           .attach('file', fixture('transactions.csv'), 'transactions.csv')
           .expect(200);
 
-        // Both sample transactions are valid
         expect(res.body.succeeded).toBe(2);
         expect(res.body.failed).toBe(0);
       });

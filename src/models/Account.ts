@@ -8,7 +8,6 @@ export class InsufficientFundsError extends Error {
   }
 }
 
-// Monetary amounts are stored as integer cents to avoid floating-point issues.
 export class Account {
   readonly number: string;
   private _balanceCents: number;

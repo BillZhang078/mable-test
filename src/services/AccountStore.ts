@@ -1,6 +1,5 @@
 import { Account } from '../models/Account';
 
-// In-memory store shared across request handlers.
 export class AccountStore {
   private accounts: Map<string, Account> = new Map();
 

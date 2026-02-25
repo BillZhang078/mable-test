@@ -2,12 +2,12 @@ import { Account } from '../models/Account';
 import { Transaction, ProcessingResult } from '../models/Transaction';
 
 export class TransactionProcessor {
-  private readonly accountIndex: Map<string, Account>;
+  private readonly accountsByNumber: Map<string, Account>;
 
   // NOTE: The processor holds references to the same Account objects as the
   // AccountStore, so debit/credit calls mutate shared state directly.
   constructor(accounts: Account[]) {
-    this.accountIndex = new Map(accounts.map((a) => [a.number, a]));
+    this.accountsByNumber = new Map(accounts.map((a) => [a.number, a]));
   }
 
   process(transactions: Transaction[]): ProcessingResult[] {
@@ -19,8 +19,8 @@ export class TransactionProcessor {
       return { transaction, success: false, error: 'Transfer amount must be greater than zero' };
     }
 
-    const from = this.accountIndex.get(transaction.from);
-    const to = this.accountIndex.get(transaction.to);
+    const from = this.accountsByNumber.get(transaction.from);
+    const to = this.accountsByNumber.get(transaction.to);
 
     if (!from) {
       return { transaction, success: false, error: `Account ${transaction.from} not found` };

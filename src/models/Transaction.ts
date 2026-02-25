@@ -1,4 +1,3 @@
-// All amounts in integer cents.
 export interface Transaction {
   from: string;
   to: string;
