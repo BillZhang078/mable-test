@@ -1,26 +1,26 @@
-import { CsvMapper } from '../src/services/CsvMapper';
+import { toAccount, toTransaction } from '../src/mappers/CsvMapper';
 
 describe('CsvMapper', () => {
   describe('toAccount', () => {
     it('converts a row into an Account domain object', () => {
-      const account = CsvMapper.toAccount({ Account: '1111234522226789', Balance: '5000.00' });
+      const account = toAccount({ Account: '1111234522226789', Balance: '5000.00' });
       expect(account.number).toBe('1111234522226789');
     });
 
     it('converts the balance to integer cents', () => {
-      const account = CsvMapper.toAccount({ Account: '1111234522226789', Balance: '5000.00' });
+      const account = toAccount({ Account: '1111234522226789', Balance: '5000.00' });
       expect(account.balance).toBe(500000);
     });
 
     it('handles fractional dollar amounts accurately', () => {
-      const account = CsvMapper.toAccount({ Account: '1111234522226789', Balance: '320.50' });
+      const account = toAccount({ Account: '1111234522226789', Balance: '320.50' });
       expect(account.balance).toBe(32050);
     });
   });
 
   describe('toTransaction', () => {
     it('converts a row into a Transaction domain object', () => {
-      const tx = CsvMapper.toTransaction({
+      const tx = toTransaction({
         From: '1111234522226789',
         To: '1212343433335665',
         Amount: '500.00',
@@ -30,7 +30,7 @@ describe('CsvMapper', () => {
     });
 
     it('converts the amount to integer cents', () => {
-      const tx = CsvMapper.toTransaction({
+      const tx = toTransaction({
         From: '1111234522226789',
         To: '1212343433335665',
         Amount: '500.00',
@@ -39,7 +39,7 @@ describe('CsvMapper', () => {
     });
 
     it('handles fractional dollar amounts accurately', () => {
-      const tx = CsvMapper.toTransaction({
+      const tx = toTransaction({
         From: '1111234522226789',
         To: '1212343433335665',
         Amount: '320.50',

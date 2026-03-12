@@ -1,6 +1,6 @@
 import { Account } from '../models/Account';
 
-export class AccountStore {
+export class AccountRepository {
   private accounts: Map<string, Account> = new Map();
 
   load(accounts: Account[]): void {

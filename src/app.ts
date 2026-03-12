@@ -3,7 +3,9 @@ import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { AccountStore } from './services/AccountStore';
+import { AccountRepository } from './repositories/AccountRepository';
+import { AccountService } from './services/AccountService';
+import { TransactionService } from './services/TransactionService';
 import { AccountController } from './controllers/AccountController';
 import { TransactionController } from './controllers/TransactionController';
 import { createAccountsRouter } from './routes/accounts';
@@ -15,9 +17,11 @@ import { logger } from './utils/logger';
 export function createApp(): express.Application {
   const app = express();
 
-  const store = new AccountStore();
-  const accountController = new AccountController(store);
-  const transactionController = new TransactionController(store);
+  const repo = new AccountRepository();
+  const accountService = new AccountService(repo);
+  const transactionService = new TransactionService(accountService);
+  const accountController = new AccountController(accountService);
+  const transactionController = new TransactionController(accountService, transactionService);
 
   app.use(helmet());
   app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*' }));
